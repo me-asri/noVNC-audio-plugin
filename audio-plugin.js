@@ -10,6 +10,8 @@ import NVUI from "/app/ui.js";
 
 // Helper class for using MediaSource with data segments
 class MediaSourcePlayer {
+    static BUFFER_MIN_REMAIN = 30;
+
     mediaSource;
     sourceBuffer;
 
@@ -47,16 +49,15 @@ class MediaSourcePlayer {
                     this.sourceBuffer.appendBuffer(data);
                     this.#dataQueue.shift();
                 } catch (err) {
-                    // If quota full, drop half of the buffer
+                    // If quota full, drop some of buffer
                     // See https://developer.chrome.com/blog/quotaexceedederror
                     if (err.name == 'QuotaExceededError') {
-                        console.log('SourceBuffer quota exceeded. Dropping half of the buffer.');
+                        console.log('SourceBuffer quota exceeded. Emptying buffer.');
 
-                        const bufferStart = this.sourceBuffer.buffered.start(0);
                         const bufferEnd = this.sourceBuffer.buffered.end(0);
-                        const removeEnd = bufferEnd - Math.max((bufferEnd - bufferStart) / 2, 1);
+                        const removeEnd = bufferEnd - MediaSourcePlayer.BUFFER_MIN_REMAIN;
 
-                        this.sourceBuffer.remove(0, removeEnd);
+                        this.sourceBuffer.remove(0, (removeEnd <= 0) ? 1 : removeEnd);
                         if (!this.sourceBuffer.updating) {
                             this.sourceBuffer.appendBuffer(data);
                             this.#dataQueue.shift();
