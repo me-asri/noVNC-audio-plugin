@@ -6,7 +6,7 @@
  * Licensed under MPL 2.0
  */
 
-import NVUI from "/app/ui.js";
+import NVUI from "./app/ui.js";
 
 // Helper class for using MediaSource with data segments
 class MediaSourcePlayer {
