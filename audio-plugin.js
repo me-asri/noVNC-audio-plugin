@@ -1,6 +1,6 @@
 /**
- * noVNC audio plugin
- * A drop-in noVNC plugin for out-of-band audio playback
+ * Audio plugin for NoVNC
+ * A drop-in plugin for out-of-band audio playback
  * 
  * Copyright (C) 2023 Mehrzad Asri
  * Licensed under MPL 2.0
@@ -132,6 +132,8 @@ class MediaSourcePlayer {
 
 // Helper functions for interacting with the NoVNC UI
 const NV = {
+    optionEls: [],
+
     getMainSettingsList() {
         return document.querySelector('#noVNC_settings ul');
     },
@@ -187,6 +189,7 @@ const NV = {
 
         NVUI.initSetting(name, defaultVal);
 
+        this.optionEls.push(settingInput);
         return settingInput;
     },
 
@@ -222,6 +225,7 @@ const NV = {
 
         NVUI.initSetting(name, defaultVal);
 
+        this.optionEls.push(settingSelect);
         return settingSelect;
     },
 
@@ -250,6 +254,12 @@ const NV = {
             }
         });
         observer.observe(doc, { attributes: true, attributeFilter: ['class'] });
+    },
+
+    disableOptions(disable = true) {
+        for (const optionEl of this.optionEls) {
+            optionEl.disabled = disable;
+        }
     }
 };
 
@@ -446,6 +456,7 @@ const AudioPlugin = {
             if (!NVUI.getSetting('audio_enabled')) {
                 return;
             }
+            NV.disableOptions();
 
             try {
                 await this.startAudio();
@@ -457,6 +468,7 @@ const AudioPlugin = {
         // Stop audio after VNC disconnection
         NV.observeState('disconnected', async () => {
             await this.stopAudio();
+            NV.disableOptions(false);
         });
     }
 };

@@ -1,8 +1,8 @@
-# noVNC Audio Plugin
+# Audio plugin for NoVNC
 
 ## Description
 
-A __NoVNC__ drop-in plugin for out-of-band audio playback.
+__NoVNC__ drop-in plugin for out-of-band audio playback.
 
 Tested with [__NoVNC 1.4.0__](https://github.com/novnc/noVNC/releases/tag/v1.4.0)
 
