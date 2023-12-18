@@ -53,11 +53,8 @@ class MediaSourcePlayer {
                     // See https://developer.chrome.com/blog/quotaexceedederror
                     if (err.name == 'QuotaExceededError') {
                         console.log('SourceBuffer quota exceeded. Emptying buffer.');
+                        this.#emptyBuffer();
 
-                        const bufferEnd = this.sourceBuffer.buffered.end(0);
-                        const removeEnd = bufferEnd - MediaSourcePlayer.BUFFER_MIN_REMAIN;
-
-                        this.sourceBuffer.remove(0, (removeEnd <= 0) ? 1 : removeEnd);
                         if (!this.sourceBuffer.updating) {
                             this.sourceBuffer.appendBuffer(data);
                             this.#dataQueue.shift();
@@ -108,7 +105,20 @@ class MediaSourcePlayer {
 
         // Feed directly if direct feed is enabled otherwise queue data
         if (this.#directFeed) {
-            this.sourceBuffer.appendBuffer(data);
+            try {
+                this.sourceBuffer.appendBuffer(data);
+            } catch (err) {
+                if (err.name == 'QuotaExceededError') {
+                    this.#emptyBuffer();
+
+                    if (this.sourceBuffer.updating) {
+                        this.#directFeed = false;
+                        this.#dataQueue.push(data);
+                    } else {
+                        this.sourceBuffer.appendBuffer(data);
+                    }
+                }
+            }
 
             // Disable direct feed if source buffer is updating
             if (this.sourceBuffer.updating) {
@@ -117,6 +127,13 @@ class MediaSourcePlayer {
         } else {
             this.#dataQueue.push(data);
         }
+    }
+
+    #emptyBuffer() {
+        const bufferEnd = this.sourceBuffer.buffered.end(0);
+        const removeEnd = bufferEnd - MediaSourcePlayer.BUFFER_MIN_REMAIN;
+
+        this.sourceBuffer.remove(0, (removeEnd <= 0) ? 1 : removeEnd);
     }
 
     static playEventHandler(event) {
