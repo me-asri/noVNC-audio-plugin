@@ -10,7 +10,10 @@ import NVUI from "./app/ui.js";
 
 // Helper class for using MediaSource with data segments
 class MediaSourcePlayer {
-    static BUFFER_MIN_REMAIN = 30;
+    static #BUFFER_MIN_REMAIN = 30;
+
+    static #DRIFT_CHECK_INTERVAL = 5000;
+    static #DRIFT_MAX_TOLERANCE = 1.0;
 
     mediaSource;
     sourceBuffer;
@@ -19,6 +22,7 @@ class MediaSourcePlayer {
     #dataQueue = [];
 
     #attachedEl;
+    #driftCheckTimer;
 
     constructor(mime) {
         this.mediaSource = new MediaSource();
@@ -75,11 +79,15 @@ class MediaSourcePlayer {
         }
 
         element.src = URL.createObjectURL(this.mediaSource);
-        element.addEventListener('play', MediaSourcePlayer.playEventHandler);
         this.#attachedEl = element;
 
         return new Promise((resolve) => {
             this.mediaSource.addEventListener('sourceopen', () => {
+                element.addEventListener('play', MediaSourcePlayer.#onPlayEventHandler);
+
+                // Occasionally check for drift and resync playback
+                this.#driftCheckTimer = setInterval(() => this.#checkDrift(), MediaSourcePlayer.#DRIFT_CHECK_INTERVAL);
+
                 resolve();
             }, { once: true });
         });
@@ -87,11 +95,18 @@ class MediaSourcePlayer {
 
     async detach() {
         if (this.#attachedEl) {
-            this.#attachedEl.removeEventListener('play', MediaSourcePlayer.playEventHandler);
+            this.#attachedEl.removeEventListener('play', MediaSourcePlayer.#onPlayEventHandler);
 
             await this.#attachedEl.pause();
             this.#attachedEl.removeAttribute('src');
             this.#attachedEl.currentTime = 0;
+
+            this.#attachedEl = null;
+        }
+
+        if (this.#driftCheckTimer) {
+            clearInterval(this.#driftCheckTimer);
+            this.#driftCheckTimer = null;
         }
     }
 
@@ -131,12 +146,22 @@ class MediaSourcePlayer {
 
     #emptyBuffer() {
         const bufferEnd = this.sourceBuffer.buffered.end(0);
-        const removeEnd = bufferEnd - MediaSourcePlayer.BUFFER_MIN_REMAIN;
+        const removeEnd = bufferEnd - MediaSourcePlayer.#BUFFER_MIN_REMAIN;
 
         this.sourceBuffer.remove(0, (removeEnd <= 0) ? 1 : removeEnd);
     }
 
-    static playEventHandler(event) {
+    #checkDrift() {
+        if (this.#attachedEl.seekable.length > 0) {
+            const drift = this.#attachedEl.seekable.end(0) - this.#attachedEl.currentTime;
+            if (drift > MediaSourcePlayer.#DRIFT_MAX_TOLERANCE) {
+                console.log(`${drift} drift exceeding tolerance, resyncing`);
+                this.#attachedEl.currentTime = this.#attachedEl.seekable.end(0);
+            }
+        }
+    }
+
+    static #onPlayEventHandler(event) {
         const audioEl = event.target;
 
         // Make sure we're always playing the live edge of the stream
