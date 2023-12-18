@@ -130,9 +130,9 @@ proxy() {
 
 	case "${codec}" in
 	'opus')
-		opus_proxy "${pulse_port}" "${pulse_format}" "${pulse_sample_rate}" "${pulse_channels}" "${bitrate}" "${sample_rate}" ;;
+		opus_proxy "${pulse_port}" "${pulse_format}" "${pulse_sample_rate}" "${pulse_channels}" "${bitrate}" ;;
 	'aac')
-		aac_proxy "${pulse_port}" "${pulse_format}" "${pulse_sample_rate}" "${pulse_channels}" "${bitrate}" ;;
+		aac_proxy "${pulse_port}" "${pulse_format}" "${pulse_sample_rate}" "${pulse_channels}" "${bitrate}" "${sample_rate}" ;;
 	*)
 		proto_error "invalid codec ${codec}";
 	esac
