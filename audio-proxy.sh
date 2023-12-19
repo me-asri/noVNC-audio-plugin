@@ -57,9 +57,9 @@ aac_proxy() {
 
 	proto_ready
 
-	exec gst-launch-1.0 -q mp4mux streamable=true fragment-duration=10 name=mux ! fdsink fd=1 \
+	exec gst-launch-1.0 -q mp4mux streamable=true fragment-duration=50 name=mux ! fdsink fd=1 \
 		tcpclientsrc port="${pulse_port}" ! queue ! rawaudioparse use-sink-caps=false format=pcm pcm-format="${pulse_format}" sample-rate="${pulse_sample_rate}" num-channels="${pulse_channels}" \
-		! audioconvert ! audioresample ! audio/x-raw, rate="${sample_rate}" ! fdkaacenc afterburner=true bitrate="${bitrate}" ! mux.audio_0
+		! audioconvert ! audioresample ! audio/x-raw, rate="${sample_rate}" ! fdkaacenc afterburner=false bitrate="${bitrate}" ! mux.audio_0
 }
 
 opus_proxy() {
@@ -72,9 +72,9 @@ opus_proxy() {
 
 	proto_ready
 
-	exec gst-launch-1.0 -q webmmux name=mux ! fdsink fd=1 \
+	exec gst-launch-1.0 -q webmmux name=mux streamable=true min-cluster-duration=50000000 ! fdsink fd=1 \
 		tcpclientsrc port="${pulse_port}" ! rawaudioparse use-sink-caps=false format=pcm pcm-format="${pulse_format}" sample-rate="${pulse_sample_rate}" num-channels="${pulse_channels}" \
-		! audioconvert ! audioresample ! opusenc bitrate="${bitrate}" bitrate-type=0 complexity=4 frame-size=10 ! mux.audio_0
+		! audioconvert ! audioresample ! opusenc audio-type=restricted-lowdelay bitrate="${bitrate}" bitrate-type=0 complexity=0 frame-size=10 ! mux.audio_0
 }
 
 proxy() {

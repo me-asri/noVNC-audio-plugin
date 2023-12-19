@@ -24,6 +24,19 @@ class MediaSourcePlayer {
     #attachedEl;
     #driftCheckTimer;
 
+    #onPlayCallback = (event) => {
+        const elem = event.target;
+
+        // Make sure we're always playing the live edge of the stream
+        // Mostly necessary if some external entity decided to pause the media
+        if (this.sourceBuffer.buffered.length > 0) {
+            elem.currentTime = this.sourceBuffer.buffered.end(0);
+        }
+
+        // Workaround: Use a slightly faster playback speed to minimize drift
+        elem.playbackRate = 1.003;
+    };
+
     constructor(mime) {
         this.mediaSource = new MediaSource();
 
@@ -83,7 +96,7 @@ class MediaSourcePlayer {
 
         return new Promise((resolve) => {
             this.mediaSource.addEventListener('sourceopen', () => {
-                element.addEventListener('play', MediaSourcePlayer.#onPlayEventHandler);
+                element.addEventListener('play', this.#onPlayCallback);
 
                 // Occasionally check for drift and resync playback
                 this.#driftCheckTimer = setInterval(() => this.#checkDrift(), MediaSourcePlayer.#DRIFT_CHECK_INTERVAL);
@@ -95,7 +108,8 @@ class MediaSourcePlayer {
 
     async detach() {
         if (this.#attachedEl) {
-            this.#attachedEl.removeEventListener('play', MediaSourcePlayer.#onPlayEventHandler);
+            this.#attachedEl.removeEventListener('play', this.#onPlayCallback);
+            this.#attachedEl.playbackRate = 1;
 
             await this.#attachedEl.pause();
             this.#attachedEl.removeAttribute('src');
@@ -152,22 +166,17 @@ class MediaSourcePlayer {
     }
 
     #checkDrift() {
-        if (this.#attachedEl.seekable.length > 0) {
-            const drift = this.#attachedEl.seekable.end(0) - this.#attachedEl.currentTime;
-            if (drift > MediaSourcePlayer.#DRIFT_MAX_TOLERANCE) {
-                console.log(`${drift} drift exceeding tolerance, resyncing`);
-                this.#attachedEl.currentTime = this.#attachedEl.seekable.end(0);
-            }
+        if (this.#attachedEl.paused) {
+            return;
         }
-    }
+        if (this.sourceBuffer.buffered.length == 0) {
+            return;
+        }
 
-    static #onPlayEventHandler(event) {
-        const audioEl = event.target;
-
-        // Make sure we're always playing the live edge of the stream
-        // Mostly necessary if some external entity decided to pause the media
-        if (audioEl.seekable.length > 0) {
-            audioEl.currentTime = audioEl.seekable.end(0);
+        const drift = this.sourceBuffer.buffered.end(0) - this.#attachedEl.currentTime;
+        if (drift > MediaSourcePlayer.#DRIFT_MAX_TOLERANCE) {
+            console.log(`${drift} drift exceeding tolerance, resyncing`);
+            this.#attachedEl.currentTime = this.sourceBuffer.buffered.end(0);
         }
     }
 }
